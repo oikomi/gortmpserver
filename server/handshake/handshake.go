@@ -41,10 +41,10 @@ func NewHandShake(conn net.Conn) *HandShake {
 		r : bufio.NewReader(conn),
 		w : bufio.NewWriter(conn),
 		conn : conn,
-		C0 : make(ChanBytes, C0Length),
-		C1 : make(ChanBytes, C1Length),
-		S0 : make(ChanBytes, S0Length),
-		S1 : make(ChanBytes, S1Length),
+		C0 : make(ChanBytes),
+		C1 : make(ChanBytes),
+		S0 : make(ChanBytes),
+		S1 : make(ChanBytes),
 	}
 }
 
@@ -92,7 +92,10 @@ func (self *HandShake)writeS0() error {
 func (self *HandShake)handShakeEvent() {
 	for {
 		select {
-		case  <-self.C0: //|| message2 := <-self.C1:
+		case <-self.C0: 
+			self.writeS0()
+			
+		case <-self.C1:
 			self.writeS0()
 
 		}
