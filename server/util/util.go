@@ -13,32 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package util
 
 import (
-	"github.com/oikomi/gortmpserver/server/config"
-	"github.com/oikomi/gortmpserver/server/rtmpserver"
-	"log"
-	"os"
+	"bytes"
+	"encoding/binary"
+	"math/rand"
 )
 
-func main() {
-	if len(os.Args) != 2 {
-		os.Exit(0)
+func GenerateRandomBytes(size uint) []byte {
+	size64 := size / uint(8)
+	buf := new(bytes.Buffer)
+	var r64 int64
+	var i uint
+	for i = uint(0); i < size64; i++ {
+		r64 = rand.Int63()
+		binary.Write(buf, binary.BigEndian, &r64)
 	}
-	
-	cfg, err := config.LoadConfig(os.Args[1])
-	log.Println(cfg.Listen)
-	if err != nil {
-		log.Fatalln(err.Error())
-		return 
+	for i = i * uint(8); i < size; i++ {
+		buf.WriteByte(byte(rand.Int()))
 	}
-	
-	rtmpserver := rtmpserver.NewRtmpServer(cfg)
-	err = rtmpserver.Listen()
-	if err != nil {
-		log.Fatalln(err.Error())
-		return 
-	}
-	
+	return buf.Bytes()
 }

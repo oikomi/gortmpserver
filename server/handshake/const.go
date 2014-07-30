@@ -2,6 +2,7 @@ package handshake
 
 
 const (
+	Version = 0x03
 	C0Length = 1
 	S0Length = 1
 	C1Length = 1536

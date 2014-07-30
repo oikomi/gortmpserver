@@ -19,8 +19,9 @@ import (
 	"net"
 	"log"
 	"bufio"
+	"github.com/oikomi/gortmpserver/server/util"
 	//"bytes"
-	//"encoding/binary"
+	"encoding/binary"
 )
 
 type ChanBytes chan []byte
@@ -78,13 +79,33 @@ func (self *HandShake)readC1() error {
 
 func (self *HandShake)writeS0() error {
 	log.Println("writeS0")
-	n, err := self.w.Write([]byte{3})
+	err := self.w.WriteByte(Version)
 	if err != nil {
 		log.Fatalln(err.Error())
 		return err
 	}
 	
-	log.Println(n)
+	return nil	
+}
+
+func (self *HandShake)writeS1() error {
+	log.Println("writeS1")
+	s1 := util.GenerateRandomBytes(S1Length)
+	
+	binary.BigEndian.PutUint32(s1, uint32(0))
+	
+	for i := 0; i < 4; i++ {
+		s1[4+i] = 0x00
+	}
+	
+	log.Println(s1)
+	/*
+	err := self.w.WriteByte(Version)
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
+	*/
 	
 	return nil	
 }
@@ -94,9 +115,10 @@ func (self *HandShake)handShakeEvent() {
 		select {
 		case <-self.C0: 
 			self.writeS0()
+			self.writeS1()
 			
-		case <-self.C1:
-			self.writeS0()
+		//case <-self.C1:
+			//self.writeS0()
 
 		}
 	}
@@ -105,8 +127,16 @@ func (self *HandShake)handShakeEvent() {
 func (self *HandShake)DoHandshake() error {
 	go self.handShakeEvent()
 	
-	self.readC0()
-	self.readC1()
+	err := self.readC0()
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
+	err = self.readC1()
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
 	
 	return nil
 }
