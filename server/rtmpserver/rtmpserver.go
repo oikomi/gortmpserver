@@ -19,6 +19,7 @@ import (
 	"net"
 	"log"
 	"github.com/oikomi/gortmpserver/server/config"
+	"github.com/oikomi/gortmpserver/server/handshake"
 )
 
 type ClientTable map[net.Conn]*RtmpClient
@@ -32,12 +33,20 @@ type RtmpServer struct {
 func NewRtmpServer(cfg *config.Config) *RtmpServer {
 	return &RtmpServer {
 		port : cfg.Listen,
-		
+		clients : make(ClientTable),
 	}
 	
 }
 
-func (self *RtmpServer)Listen() error{
+func (self *RtmpServer)handleClient(conn net.Conn) {
+	rtmpclient := NewRtmpClient()
+	self.clients[conn] = rtmpclient
+	hs := handshake.NewHandShake(conn)
+	hs.DoHandshake()
+
+}
+
+func (self *RtmpServer)Listen() error {
 	var err error
 	self.listener, err = net.Listen("tcp", self.port)
 	if err != nil {
@@ -52,8 +61,9 @@ func (self *RtmpServer)Listen() error{
 			log.Fatalln(err.Error())
 			return err
 		}
-		rtmpclient := NewRtmpClient()
-		self.clients[conn] = rtmpclient
+
+		go self.handleClient(conn)
+		
 	}
 	
 	return nil
