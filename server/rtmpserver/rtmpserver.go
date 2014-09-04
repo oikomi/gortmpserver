@@ -20,7 +20,6 @@ import (
 	"log"
 	"github.com/oikomi/gortmpserver/server/config"
 	"github.com/oikomi/gortmpserver/server/handshake"
-	
 )
 
 type ClientTable map[net.Conn]*RtmpClient
@@ -44,7 +43,6 @@ func (self *RtmpServer)handleClient(conn net.Conn) {
 	self.clients[conn] = rtmpclient
 	hs := handshake.NewHandShake(conn)
 	hs.DoHandshake()
-
 }
 
 func (self *RtmpServer)Listen() error {
