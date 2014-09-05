@@ -15,12 +15,51 @@
 
 package rtmpserver
 
-type RtmpClient struct {
+import (
+	"net"
+	"bufio"
+	"log"
+	"errors"
+)
 
+type RtmpClient struct {
+	conn net.Conn
+	reader   *bufio.Reader
+	writer   *bufio.Writer
 }
 
-func NewRtmpClient() *RtmpClient {
+func NewRtmpClient(conn net.Conn) *RtmpClient {
+	r := bufio.NewReader(conn)
+	w := bufio.NewWriter(conn)
 	return &RtmpClient {
-		
+		conn : conn,
+		reader : r,
+		writer : w,
 	}
+}
+
+func (self *RtmpClient) ReadByte() (byte, error) {
+	b, err := self.reader.ReadByte()
+	if err != nil {
+		log.Fatalln(err.Error())
+		return b, err
+	}
+	
+	return b, nil
+}
+
+func (self *RtmpClient) ReadBytes(num int) ([]byte, error) {
+	bs := make([]byte, num)
+	n, err := self.reader.Read(bs)
+	if err != nil {
+		log.Fatalln(err.Error())
+		return bs, err
+	}
+	
+	if n != num {
+		err = errors.New("read wrong num bytes")
+		return bs, err
+	}
+	
+	return bs, nil
 }

@@ -35,3 +35,23 @@ func GenerateRandomBytes(size uint) []byte {
 	}
 	return buf.Bytes()
 }
+
+func ReadUint8(b []byte) (v uint8) {
+	v = uint8(b[0])
+	return v
+}
+
+func ReadUint16(b []byte) (v uint16) {
+	v = uint16(b[1]) | uint16(b[0])<<8
+	return v
+}
+
+func ReadUint24(b []byte) (v uint32) {
+	v = uint32(b[2]) | uint32(b[1])<<8 | uint32(b[0])<<16
+	return v
+}
+
+func ReadUint32(b []byte) (v uint32) {
+	v = uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	return v
+}

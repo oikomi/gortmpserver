@@ -56,20 +56,20 @@ func NewHandShake(conn net.Conn) *HandShake {
 }
 
 func (self *HandShake)readC0C1() error {
-	log.Println("readC0C1")
+	//log.Println("readC0C1")
 	if self.C0C1 == nil {
 		self.C0C1 = make([]byte, C0Length + C1Length)
 		if _, err := io.ReadFull(self.conn, self.C0C1); err != nil {
 			return err
 		}
 	}
-	log.Println(self.C0C1)
+	//log.Println(self.C0C1)
 	
 	return nil	
 }
 
 func (self *HandShake)readC2() error {
-	log.Println("readC2")
+	//log.Println("readC2")
 	if self.C2 == nil {
 		self.C2 = make([]byte, C2Length)
 		if _, err := io.ReadFull(self.conn, self.C2); err != nil {
@@ -77,14 +77,15 @@ func (self *HandShake)readC2() error {
 			return err
 		}
 	}
-	log.Println(self.C2)
+	//log.Println(self.C2)
+	//log.Println(len(self.C2))
 	
 	return nil	
 }
 
 
 func (self *HandShake)writeS0S1S2() error {
-	log.Println("writeS0S1S2")
+	//log.Println("writeS0S1S2")
 	self.S0S1S2 = util.GenerateRandomBytes(S0Length + S1Length + S2Length)
 	
 	self.S0S1S2[0] = 0x03
@@ -94,27 +95,12 @@ func (self *HandShake)writeS0S1S2() error {
 	//for i := 0; i < 4; i++ {
 	//	s1[4+i] = 0x00
 	//}
-	log.Println(self.S0S1S2)
-	log.Println(len(self.S0S1S2))
+	//log.Println(self.S0S1S2)
+	//log.Println(len(self.S0S1S2))
 	
 	if _, err := self.conn.Write(self.S0S1S2); err != nil {
 		return err
 	}
-	
-	/*
-	_, err := self.w.Write(s1)
-	if err != nil {
-		log.Fatalln(err.Error())
-		return err
-	}
-	
-	err = self.w.Flush()
-	if err != nil {
-		log.Fatalln(err.Error())
-		return err
-	}
-	*/
-	
 	
 	return nil	
 }
