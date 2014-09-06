@@ -20,15 +20,45 @@ import (
 	"github.com/oikomi/gortmpserver/server/rtmpserver"
 	"log"
 	"os"
+	"fmt"
 )
 
+/*
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+const char* build_time(void) {
+	static const char* psz_build_time = "["__DATE__ " " __TIME__ "]";
+	return psz_build_time;
+}
+*/
+import "C"
+
+var (
+	buildTime = C.GoString(C.build_time())
+)
+
+func BuildTime() string {
+	return buildTime
+}
+
+const VERSION string = "0.10"
+
+func version() {
+	fmt.Printf("gortmpserver version %s Copyright (c) 2014 Harold Miao (miaohonghit@gmail.com)  \n", VERSION)
+}
+
 func main() {
+	version()
+	fmt.Printf("built on %s\n", BuildTime())
+	
 	if len(os.Args) != 2 {
 		os.Exit(0)
 	}
 	
 	cfg, err := config.LoadConfig(os.Args[1])
-	log.Println(cfg.Listen)
+	//log.Println(cfg.Listen)
 	if err != nil {
 		log.Fatalln(err.Error())
 		return 

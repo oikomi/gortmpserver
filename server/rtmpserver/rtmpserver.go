@@ -18,9 +18,12 @@ package rtmpserver
 import (
 	"net"
 	"log"
+	"errors"
+	"math"
 	"github.com/oikomi/gortmpserver/server/config"
 	"github.com/oikomi/gortmpserver/server/handshake"
 	"github.com/oikomi/gortmpserver/server/util"
+	"github.com/oikomi/gortmpserver/server/amf"
 )
 
 type ClientTable map[net.Conn]*RtmpClient
@@ -91,12 +94,24 @@ func (self *RtmpServer)recvMsg(rtmpClient *RtmpClient) error {
 		return err
 	}
 	
-	log.Println(chunkStream.BasicHeader.Fmt)
-	log.Println(chunkStream.BasicHeader.Cid)
-	log.Println(chunkStream.BasicHeader.Size)
+	//log.Println(chunkStream.BasicHeader.Fmt)
+	//log.Println(chunkStream.BasicHeader.Cid)
+	//log.Println(chunkStream.BasicHeader.Size)
 	
-	err = self.readChunkMsgHeader(rtmpClient, chunkStream)
-	if err != nil {
+	if err = self.readChunkMsgHeader(rtmpClient, chunkStream); err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
+
+
+	if err = self.readChunkMsgData(rtmpClient, chunkStream); err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
+
+	log.Println(chunkStream.Msg.Payload)	
+	
+	if err = self.onRecvMessage(chunkStream.Msg); err != nil {
 		log.Fatalln(err.Error())
 		return err
 	}
@@ -164,9 +179,8 @@ func (self *RtmpServer) readChunkMsgHeader(rtmpClient *RtmpClient, chunkStream *
 	}
 	
 	if fmt <= RTMP_FMT_TYPE2 {
-		//log.Println(bs[0:3])
 		chunkStream.MsgHeader.TimestampDelta = util.ReadUint24(bs[0:3])	
-		if chunkStream.ExtendedTimestampFlag = false; chunkStream.MsgHeader.Timestamp >= RTMP_EXTENDED_TIMESTAMP {
+		if chunkStream.ExtendedTimestampFlag = false; chunkStream.MsgHeader.TimestampDelta >= RTMP_EXTENDED_TIMESTAMP {
 			chunkStream.ExtendedTimestampFlag = true
 		}
 		
@@ -200,9 +214,158 @@ func (self *RtmpServer) readChunkMsgHeader(rtmpClient *RtmpClient, chunkStream *
 		log.Println(chunkStream.ExtendedTimestamp)
 	}
 	
-
+	if chunkStream.MsgHeader.MessageLength  < 0 {
+		err = errors.New("chunkStream.MsgHeader.MessageLength  < 0")
+		return err
+	}
+	
+	chunkStream.Msg.Header.MessageType = chunkStream.MsgHeader.MessageTypeId
+	chunkStream.Msg.Header.MessageStreamId = chunkStream.MsgHeader.MessageStreamId
+	chunkStream.Msg.Header.PayloadLength = chunkStream.MsgHeader.MessageLength
 	
 	return nil
 	
 }
+
+func (self *RtmpServer) readChunkMsgData(rtmpClient *RtmpClient, chunkStream *ChunkStream) error {
+	var err error
+	if chunkStream.ChunkData == nil {
+		chunkStream.ChunkData = make([]byte, chunkStream.MsgHeader.MessageLength)
+	}
+	
+	if chunkStream.MsgHeader.MessageLength <= RTMP_DEFAULT_CHUNK_SIZE {
+		chunkStream.ChunkData, err = rtmpClient.ReadBytes(int(chunkStream.MsgHeader.MessageLength))
+		if err != nil {
+			log.Fatalln(err.Error())
+			return err
+		}
+		
+		log.Println(chunkStream.ChunkData)
+		log.Println(len(chunkStream.ChunkData))	
+		
+		if chunkStream.Msg.Payload == nil {
+			chunkStream.Msg.Payload = make([]byte, chunkStream.MsgHeader.MessageLength)
+		}
+		
+		copy(chunkStream.Msg.Payload , chunkStream.ChunkData)
+		chunkStream.MsgCount ++
+		
+	} else {
+			if chunkStream.Msg.Payload == nil {
+				//log.Println("chunkStream.Msg.Payload == nil")
+				chunkStream.Msg.Payload = make([]byte, chunkStream.MsgHeader.MessageLength)
+			}
+			num := chunkStream.MsgHeader.MessageLength / RTMP_DEFAULT_CHUNK_SIZE
+			lastLength := chunkStream.MsgHeader.MessageLength % RTMP_DEFAULT_CHUNK_SIZE
+			
+			if lastLength != 0 {
+				num ++
+			}
+			chunkStream.MsgCount = num 
+			var i uint32
+			tmpChunkStream := NewChunkStream()
+			tmpSizesList := []int{11, 7, 3, 0}
+			
+			for i = 0; i < num; i++ {
+				size := chunkStream.MsgHeader.MessageLength - chunkStream.Msg.ReceivedPayloadLength
+				size = uint32(math.Min(float64(size), float64(RTMP_DEFAULT_CHUNK_SIZE)))
+
+				tmp, err := rtmpClient.ReadBytes(int(size))
+				if err != nil {
+					log.Fatalln(err.Error())
+					return err
+				}
+				
+				copy(chunkStream.Msg.Payload[chunkStream.Msg.ReceivedPayloadLength:chunkStream.Msg.ReceivedPayloadLength+size], tmp)
+
+				chunkStream.Msg.ReceivedPayloadLength += size
+				
+				if chunkStream.Msg.ReceivedPayloadLength == chunkStream.MsgHeader.MessageLength {
+					//log.Println("chunkStream.Msg.ReceivedPayloadLength == chunkStream.MsgHeader.MessageLength")
+					break
+				}
+				
+				err = self.readChunkBasicHeader(rtmpClient, tmpChunkStream)
+				if err != nil {
+					log.Fatalln(err.Error())
+					return err
+				}
+				
+				tmpFmt := int(tmpChunkStream.BasicHeader.Fmt)
+				
+				tmpSize := tmpSizesList[tmpFmt]
+				
+				if int(tmpSize) != 0 {	
+					discardData, err := rtmpClient.ReadBytes(int(tmpSize))
+					if err != nil {
+						log.Fatalln(err.Error())
+						log.Fatalln(discardData)
+						return err
+					}
+				}			
+								
+			}
+	}
+	
+	return nil
+}
+
+func (self *RtmpServer) onRecvMessage(msg *Message) error {
+	self.DecodeMessage(msg)
+	return nil
+}
+
+func (self *RtmpServer)DecodeMessage(msg *Message) {
+	self.DecodePacket(msg.Header, msg.Payload)
+}
+
+func (self *RtmpServer)DecodePacket(header *MessageHeader, payload []byte) (interface {}, error) {
+	if header.IsAmf0Command() {
+		var cmd string
+		var err error
+		amf0Codec := amf.NewAmf0Codec(payload)
+		if cmd, err = amf0Codec.ReadString(); err != nil {
+			return nil, err
+		}
+		
+		log.Println(cmd)
+		
+		switch cmd {
+		case AMF0_COMMAND_CONNECT:
+			NewConnectAppPacket()
+		/*
+		case AMF0_COMMAND_CREATE_STREAM:
+			pkt = NewCreateStreamPacket()
+		case AMF0_COMMAND_PLAY:
+			pkt = NewPlayPacket()
+		case AMF0_COMMAND_PUBLISH:
+			pkt = NewPublishPacket()
+		case AMF0_COMMAND_CLOSE_STREAM:
+			pkt = NewCloseStreamPacket()
+		case AMF0_COMMAND_RELEASE_STREAM:
+			pkt = NewFMLEStartPacket()
+		case AMF0_COMMAND_FC_PUBLISH:
+			pkt = NewFMLEStartPacket()
+		case AMF0_COMMAND_UNPUBLISH:
+			pkt = NewFMLEStartPacket()
+		*/
+		}
+		
+	} 
+	/*
+	else if header.IsWindowAcknowledgementSize() {
+		pkt =NewSetWindowAckSizePacket()
+	} else if header.IsUserControlMessage() {
+		pkt = NewUserControlPacket()
+	} else if header.IsSetChunkSize() {
+		pkt = NewSetChunkSizePacket()
+	}
+	*/
+
+
+
+	return nil, nil
+}
+
+
 

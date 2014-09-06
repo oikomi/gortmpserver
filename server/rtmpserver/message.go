@@ -15,24 +15,55 @@
 
 package rtmpserver
 
-
-
 type MessageHeader struct {
-	MessageType byte
+	MessageType uint8
 	PayloadLength uint32
 	TimestampDelta uint32
 	MessageStreamId uint32
 	Timestamp uint64
 }
 
+func (self *MessageHeader) IsAmf0Command() (bool) {
+	return self.MessageType == RTMP_MSG_AMF0CommandMessage
+}
+func (self *MessageHeader) IsAmf3Command() (bool) {
+	return self.MessageType == RTMP_MSG_AMF3CommandMessage
+}
+func (self *MessageHeader) IsAmf0Data() (bool) {
+	return self.MessageType == RTMP_MSG_AMF0DataMessage
+}
+func (self *MessageHeader) IsAmf3Data() (bool) {
+	return self.MessageType == RTMP_MSG_AMF3DataMessage
+}
+func (self *MessageHeader) IsWindowAcknowledgementSize() (bool) {
+	return self.MessageType == RTMP_MSG_WindowAcknowledgementSize
+}
+func (self *MessageHeader) IsSetChunkSize() (bool) {
+	return self.MessageType == RTMP_MSG_SetChunkSize
+}
+func (self *MessageHeader) IsUserControlMessage() (bool) {
+	return self.MessageType == RTMP_MSG_UserControlMessage
+}
+func (self *MessageHeader) IsVideo() (bool) {
+	return self.MessageType == RTMP_MSG_VideoMessage
+}
+func (self *MessageHeader) IsAudio() (bool) {
+	return self.MessageType == RTMP_MSG_AudioMessage
+}
+func (self *MessageHeader) IsAggregate() (bool) {
+	return self.MessageType == RTMP_MSG_AggregateMessage
+}
+
+
 type Message struct {
 	Header *MessageHeader
+	ReceivedPayloadLength uint32
 	Payload []byte
 }
 
 func NewMessage() *Message {
 	return &Message {
-		
+		Header : new(MessageHeader),
 	}
 }
 

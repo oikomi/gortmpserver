@@ -15,35 +15,18 @@
 
 package rtmpserver
 
-type ChunkBasicHeader struct {
-	Fmt byte
-	Cid int
-	Size int
-}
+import (
+	"github.com/oikomi/gortmpserver/server/amf"
+)
 
-type ChunkMessageHeader struct {
-	Timestamp uint32
-	TimestampDelta uint32
-	MessageLength uint32
-	MessageTypeId uint8
-	MessageStreamId uint32
+type ConnectAppPacket struct {
+	CommandName string
+	TransactionId float64
+	CommandObject *amf.Amf0CmdObject
 }
-
-type ChunkStream struct {
-	BasicHeader *ChunkBasicHeader
-	MsgHeader *ChunkMessageHeader
-	ExtendedTimestampFlag bool
-	ExtendedTimestamp uint32
-	ChunkData []byte
-	Msg *Message
-	MsgCount uint32
-}
-
-func NewChunkStream() *ChunkStream {
-	return &ChunkStream{
-		BasicHeader : new(ChunkBasicHeader),
-		MsgHeader : new(ChunkMessageHeader),
-		ExtendedTimestampFlag : false,
-		Msg : NewMessage(),
+func NewConnectAppPacket() (*ConnectAppPacket) {
+	return &ConnectAppPacket{
+		TransactionId : float64(1.0),
+		CommandObject : amf.NewAmf0CmdObject(),
 	}
 }

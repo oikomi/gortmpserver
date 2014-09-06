@@ -1,3 +1,4 @@
+
 //
 // Copyright 2014 Hong Miao. All Rights Reserved.
 //
@@ -13,37 +14,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rtmpserver
 
-type ChunkBasicHeader struct {
-	Fmt byte
-	Cid int
-	Size int
+package amf
+
+type AmfBuffer struct {
+	b []byte
+	
+	
 }
 
-type ChunkMessageHeader struct {
-	Timestamp uint32
-	TimestampDelta uint32
-	MessageLength uint32
-	MessageTypeId uint8
-	MessageStreamId uint32
-}
 
-type ChunkStream struct {
-	BasicHeader *ChunkBasicHeader
-	MsgHeader *ChunkMessageHeader
-	ExtendedTimestampFlag bool
-	ExtendedTimestamp uint32
-	ChunkData []byte
-	Msg *Message
-	MsgCount uint32
-}
-
-func NewChunkStream() *ChunkStream {
-	return &ChunkStream{
-		BasicHeader : new(ChunkBasicHeader),
-		MsgHeader : new(ChunkMessageHeader),
-		ExtendedTimestampFlag : false,
-		Msg : NewMessage(),
+func NewAmfBuffer(b []byte) *AmfBuffer {
+	return &AmfBuffer{
+		b : b,
 	}
 }
