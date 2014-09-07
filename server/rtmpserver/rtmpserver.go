@@ -20,6 +20,7 @@ import (
 	"log"
 	"errors"
 	"math"
+	"reflect"
 	"github.com/oikomi/gortmpserver/server/config"
 	"github.com/oikomi/gortmpserver/server/handshake"
 	"github.com/oikomi/gortmpserver/server/util"
@@ -32,12 +33,17 @@ type RtmpServer struct {
 	port string
 	listener net.Listener
 	clients  ClientTable
+	
+	recvMessage chan *Message
+	sendMessage chan *Message
 }
 
 func NewRtmpServer(cfg *config.Config) *RtmpServer {
 	return &RtmpServer {
 		port : cfg.Listen,
 		clients : make(ClientTable),
+		recvMessage : make(chan *Message),
+		sendMessage : make(chan *Message),
 	}
 	
 }
@@ -51,8 +57,15 @@ func (self *RtmpServer)handleClient(conn net.Conn) error {
 		log.Fatalln(err.Error())
 		return err
 	}
-	
 	self.startMessagePump(rtmpClient)
+	
+	req := NewRequest()
+	
+	err = self.ConnectApp(req)
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
 	
 	return nil
 	
@@ -68,7 +81,7 @@ func (self *RtmpServer)Listen() error {
 	
 	for {
 		conn, err := self.listener.Accept()
-		log.Printf("Accept")
+		//log.Printf("Accept")
 		if err != nil {
 			log.Fatalln(err.Error())
 			return err
@@ -79,6 +92,105 @@ func (self *RtmpServer)Listen() error {
 	}
 	
 	return nil
+}
+
+func (self *RtmpServer) ExpectPacket(v interface {}) (msg *Message, err error) {
+	rv := reflect.ValueOf(v)
+	rt := reflect.TypeOf(v)
+	if rv.Kind() != reflect.Ptr {
+		err = errors.New("param must be ptr for expect message")
+		return
+	}
+	if rv.IsNil() {
+		err = errors.New("param should never be nil")
+		return
+	}
+	if !rv.Elem().CanSet() {
+		err = errors.New("param should be settable")
+		return
+	}
+
+	for {
+		if msg, err = self.RecvMessage(); err != nil {
+			log.Fatalln(err.Error())
+			return
+		}
+		
+		if msg == nil {
+			log.Fatalln("msg == nil")
+			continue			
+		}
+		
+		var pkt interface {}
+		if pkt, err = self.DecodeMessage(msg); err != nil {
+			log.Fatalln(err.Error())
+			return
+		}
+		if pkt == nil {
+			log.Fatalln("pkt == nil")
+			continue
+		}
+
+		// check the convertible and convert to the value or ptr value.
+		// for example, the v like the c++ code: Msg**v
+		pkt_rt := reflect.TypeOf(pkt)
+		if pkt_rt.ConvertibleTo(rt) {
+			// directly match, the pkt is like c++: Msg**pkt
+			// set the v by: *v = *pkt
+			rv.Elem().Set(reflect.ValueOf(pkt).Elem())
+			return
+		}
+		if pkt_rt.ConvertibleTo(rt.Elem()) {
+			// ptr match, the pkt is like c++: Msg*pkt
+			// set the v by: *v = pkt
+			rv.Elem().Set(reflect.ValueOf(pkt))
+			return
+		}
+	}
+
+	return
+}
+
+func (self *RtmpServer) ConnectApp(req *Request) error {
+	log.Println("ConnectApp")
+	var err error
+	var pkt *ConnectAppPacket
+
+	_, err = self.ExpectPacket(&pkt)
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
+
+	v, ok := pkt.CommandObject["tcUrl"]
+	if !ok {
+		err = errors.New("invalid request, must specifies the tcUrl.")
+		return err
+	}
+	req.TcUrl = v.(string)
+	if v, ok := pkt.CommandObject["pageUrl"]; ok {
+		req.PageUrl = v.(string)
+	}
+	if v, ok := pkt.CommandObject["swfUrl"]; ok {
+		req.SwfUrl = v.(string)
+	}
+	if v, ok := pkt.CommandObject["objectEncoding"]; ok {
+		req.ObjectEncoding = v.(float64)
+	}
+	
+	log.Println(req.TcUrl)
+	log.Println(req.PageUrl)
+
+	return nil
+}
+
+func (self *RtmpServer) RecvMessage() (*Message, error) {
+	if msg, ok := <- self.recvMessage; ok {
+		return msg, nil
+	}
+
+	err := errors.New("recv msg error")
+	return nil, err
 }
 
 func (self *RtmpServer)startMessagePump(rtmpClient *RtmpClient) {
@@ -94,10 +206,6 @@ func (self *RtmpServer)recvMsg(rtmpClient *RtmpClient) error {
 		return err
 	}
 	
-	//log.Println(chunkStream.BasicHeader.Fmt)
-	//log.Println(chunkStream.BasicHeader.Cid)
-	//log.Println(chunkStream.BasicHeader.Size)
-	
 	if err = self.readChunkMsgHeader(rtmpClient, chunkStream); err != nil {
 		log.Fatalln(err.Error())
 		return err
@@ -109,12 +217,14 @@ func (self *RtmpServer)recvMsg(rtmpClient *RtmpClient) error {
 		return err
 	}
 
-	log.Println(chunkStream.Msg.Payload)	
+	//log.Println(chunkStream.Msg.Payload)	
 	
 	if err = self.onRecvMessage(chunkStream.Msg); err != nil {
 		log.Fatalln(err.Error())
 		return err
 	}
+	
+	self.recvMessage <- chunkStream.Msg
 		
 	return nil
 }
@@ -315,56 +425,53 @@ func (self *RtmpServer) onRecvMessage(msg *Message) error {
 	return nil
 }
 
-func (self *RtmpServer)DecodeMessage(msg *Message) {
-	self.DecodePacket(msg.Header, msg.Payload)
+func (self *RtmpServer) DecodeMessage(msg *Message) (interface {}, error) {
+	if msg == nil || msg.Payload == nil {
+		return nil, errors.New("DecodeMessage failed")
+	}
+
+	pkt, err := self.DecodePacket(msg.Header, msg.Payload)
+	if err != nil {
+		log.Fatalln(err.Error())
+		return nil, err
+	}
+	
+	return pkt, err
 }
 
-func (self *RtmpServer)DecodePacket(header *MessageHeader, payload []byte) (interface {}, error) {
+func (self *RtmpServer) DecodePacket(header *MessageHeader, payload []byte) (interface {}, error) {
+	var pkt IPkg = nil
+	var err error
+	var cmd string
+	buf := amf.NewAmfBuffer(payload)
 	if header.IsAmf0Command() {
-		var cmd string
-		var err error
-		amf0Codec := amf.NewAmf0Codec(payload)
-		if cmd, err = amf0Codec.ReadString(); err != nil {
+		cmd, err = amf.ReadString(buf.Buf)
+		if err != nil {
+			log.Fatalln(err.Error())
 			return nil, err
 		}
-		
-		log.Println(cmd)
-		
+			
 		switch cmd {
 		case AMF0_COMMAND_CONNECT:
-			NewConnectAppPacket()
-		/*
-		case AMF0_COMMAND_CREATE_STREAM:
-			pkt = NewCreateStreamPacket()
-		case AMF0_COMMAND_PLAY:
-			pkt = NewPlayPacket()
-		case AMF0_COMMAND_PUBLISH:
-			pkt = NewPublishPacket()
-		case AMF0_COMMAND_CLOSE_STREAM:
-			pkt = NewCloseStreamPacket()
-		case AMF0_COMMAND_RELEASE_STREAM:
-			pkt = NewFMLEStartPacket()
-		case AMF0_COMMAND_FC_PUBLISH:
-			pkt = NewFMLEStartPacket()
-		case AMF0_COMMAND_UNPUBLISH:
-			pkt = NewFMLEStartPacket()
-		*/
+			pkt = NewConnectAppPacket()
+			err = pkt.FillPacket(buf.Buf)
+			if err != nil {
+				log.Fatalln(err.Error())
+				return nil, err
+			}
+			
+			err = pkt.Verify()	
+			if err != nil {
+				log.Fatalln(err.Error())
+				return nil, err
+			}		
+
+		
 		}
 		
-	} 
-	/*
-	else if header.IsWindowAcknowledgementSize() {
-		pkt =NewSetWindowAckSizePacket()
-	} else if header.IsUserControlMessage() {
-		pkt = NewUserControlPacket()
-	} else if header.IsSetChunkSize() {
-		pkt = NewSetChunkSizePacket()
 	}
-	*/
 
-
-
-	return nil, nil
+	return pkt, nil
 }
 
 

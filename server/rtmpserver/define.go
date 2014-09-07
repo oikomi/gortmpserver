@@ -15,6 +15,10 @@
 
 package rtmpserver
 
+import (
+	"bytes"
+)
+
 const RTMP_FMT_TYPE0 = 0
 const RTMP_FMT_TYPE1 = 1
 const RTMP_FMT_TYPE2 = 2
@@ -60,3 +64,9 @@ const AMF0_COMMAND_PUBLISH = "publish"
 const AMF0_DATA_SAMPLE_ACCESS = "|RtmpSampleAccess"
 const AMF0_DATA_SET_DATAFRAME = "@setDataFrame"
 const AMF0_DATA_ON_METADATA = "onMetaData"
+
+
+type IPkg interface {
+	Verify() error
+	FillPacket(buf *bytes.Buffer) error
+}

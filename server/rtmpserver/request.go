@@ -1,4 +1,3 @@
-
 //
 // Copyright 2014 Hong Miao. All Rights Reserved.
 //
@@ -14,22 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+package rtmpserver
 
-package amf
+type Request struct {
+	TcUrl string
+	PageUrl string
+	SwfUrl string
+	ObjectEncoding float64
 
-import (
-	"bytes"
-)
-
-type AmfBuffer struct {
-	Buf *bytes.Buffer
-	ReadPos uint32
+	Schema string
+	Vhost string
+	Port string
+	App string
+	Stream string
 }
 
-
-func NewAmfBuffer(b []byte) *AmfBuffer {
-	return &AmfBuffer{
-		Buf : bytes.NewBuffer(b),
-		ReadPos : 0,
+func NewRequest() (*Request) {
+	return &Request {
+		
 	}
 }

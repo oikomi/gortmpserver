@@ -28,7 +28,7 @@ type Config struct {
 }
 
 func LoadConfig(configpath string) (cfg *Config, err error) {
-	log.Println(configpath)
+	//log.Println(configpath)
 	var configfile string
 	flag.StringVar(&configfile, "config", configpath, "config file")
 	flag.Parse()

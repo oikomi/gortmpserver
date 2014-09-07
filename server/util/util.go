@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math/rand"
+	"math"
 )
 
 func GenerateRandomBytes(size uint) []byte {
@@ -53,5 +54,14 @@ func ReadUint24(b []byte) (v uint32) {
 
 func ReadUint32(b []byte) (v uint32) {
 	v = uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	return v
+}
+
+
+func ReadFloat64(b []byte) (v float64) {
+	v64 := uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+	v = math.Float64frombits(v64)
+
 	return v
 }
