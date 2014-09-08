@@ -67,8 +67,14 @@ func (self *RtmpServer)handleClient(conn net.Conn) error {
 		return err
 	}
 	
-	return nil
+	ack_size := uint32(2.5 * 1000 * 1000)
+	err = self.SetWindowAckSize(ack_size, rtmpClient)
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
 	
+	return nil
 }
 
 func (self *RtmpServer)Listen() error {
@@ -181,8 +187,55 @@ func (self *RtmpServer) ConnectApp(req *Request) error {
 	log.Println(req.TcUrl)
 	log.Println(req.PageUrl)
 
-	return nil
+	err = req.DiscoveryApp()
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
+	
+	return nil	
+	
 }
+
+func (self *RtmpServer) SetWindowAckSize(ackSize uint32, rtmpClient *RtmpClient)  error {
+	pkt := NewSetWindowAckSizePacket()
+	n, buf, err := pkt.Encode()
+	if err != nil {
+		log.Fatalln(err.Error())
+		return err
+	}
+	
+	log.Println("---------")
+	log.Println(buf.Len())
+	log.Println(n)
+	
+	return nil	
+	
+	
+	
+}
+
+/*
+func (self *RtmpServer) EncodeMessage(pkt *IPkgEncode) (*Message, error) {
+	msg := NewMessage()
+
+	cid = pkt.GetCid()
+
+	size := pkt.GetSize()
+
+	b := make([]byte, size)
+	buf := NewAmfBuffer(b)
+	if err = pkt.Encode(buf.Buf); err != nil {
+		return
+	}
+
+	msg.Header.MessageType = pkt.GetMessageType()
+	msg.Header.PayloadLength = uint32(size)
+	msg.Payload = b
+
+	return
+}
+*/
 
 func (self *RtmpServer) RecvMessage() (*Message, error) {
 	if msg, ok := <- self.recvMessage; ok {
@@ -440,7 +493,7 @@ func (self *RtmpServer) DecodeMessage(msg *Message) (interface {}, error) {
 }
 
 func (self *RtmpServer) DecodePacket(header *MessageHeader, payload []byte) (interface {}, error) {
-	var pkt IPkg = nil
+	var pkt IPkgDecode = nil
 	var err error
 	var cmd string
 	buf := amf.NewAmfBuffer(payload)
@@ -473,6 +526,7 @@ func (self *RtmpServer) DecodePacket(header *MessageHeader, payload []byte) (int
 
 	return pkt, nil
 }
+
 
 
 

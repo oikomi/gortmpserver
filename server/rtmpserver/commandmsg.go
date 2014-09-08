@@ -31,8 +31,6 @@ type ConnectAppPacket struct {
 func NewConnectAppPacket() (*ConnectAppPacket) {
 	return &ConnectAppPacket {
 		CommandName : AMF0_COMMAND_CONNECT,
-		//TransactionId : float64(1.0),
-		//CommandObject : make(amf.Object),
 	}
 }
 

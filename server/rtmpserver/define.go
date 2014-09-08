@@ -24,6 +24,13 @@ const RTMP_FMT_TYPE1 = 1
 const RTMP_FMT_TYPE2 = 2
 const RTMP_FMT_TYPE3 = 3
 
+const (
+	HEADER_FMT_FULL                   = 0x00
+	HEADER_FMT_SAME_STREAM            = 0x01
+	HEADER_FMT_SAME_LENGTH_AND_STREAM = 0x02
+	HEADER_FMT_CONTINUATION           = 0x03
+)
+
 const RTMP_EXTENDED_TIMESTAMP  = 0xFFFFFF
 
 const RTMP_DEFAULT_CHUNK_SIZE = 128
@@ -66,7 +73,30 @@ const AMF0_DATA_SET_DATAFRAME = "@setDataFrame"
 const AMF0_DATA_ON_METADATA = "onMetaData"
 
 
-type IPkg interface {
+const RTMP_CID_ProtocolControl = 0x02
+const RTMP_CID_OverConnection = 0x03
+const RTMP_CID_OverConnection2 = 0x04
+const RTMP_CID_OverStream = 0x05
+const RTMP_CID_OverStream2 = 0x08
+const RTMP_CID_Video = 0x06
+const RTMP_CID_Audio = 0x07
+
+
+type IPkgDecode interface {
 	Verify() error
 	FillPacket(buf *bytes.Buffer) error
+}
+
+type IPkgEncode interface {
+	Encode(b *bytes.Buffer) error
+}
+
+type Writer interface {
+	Write(p []byte) (nn int, err error)
+	WriteByte(c byte) error
+}
+
+type Reader interface {
+	Read(p []byte) (n int, err error)
+	ReadByte() (c byte, err error)
 }
