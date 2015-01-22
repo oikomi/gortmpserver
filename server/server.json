@@ -1,0 +1,5 @@
+{
+	"TransportProtocols" : "tcp",
+	"Listen"             : "0.0.0.0:1935",
+	"LogFile"            : "rtmp_server.log"
+}
