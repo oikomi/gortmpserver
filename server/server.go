@@ -73,6 +73,10 @@ func (self *RtmpServer)doHandShake(session *libnet.Session) error {
 		return err
 	}
 	
+	hs.sendS0S1S2()
+	
+	hs.recvC2()
+	
 	return nil
 }
 

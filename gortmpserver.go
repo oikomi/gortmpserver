@@ -65,7 +65,7 @@ func main() {
 		glog.Error(err.Error())
 		return
 	}
-	
+	libnet.DefaultProtocol = libnet.NewrtmpProtocol(1, libnet.BigEndian)
 	s, err := libnet.Listen(cfg.TransportProtocols, cfg.Listen)
 	if err != nil {
 		glog.Error(err.Error())
