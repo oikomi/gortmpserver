@@ -40,10 +40,18 @@ func (self *RtmpServer)ServerLoop() {
 	})
 }
 
-func (self *RtmpServer)handleSession(session *libnet.Session) {
+func (self *RtmpServer)handleSession(session *libnet.Session) error {
 	glog.Info("handleSession")
+	var err error
+	err = self.doHandShake(session)
+	if err != nil {
+		glog.Error(err.Error())
+		return err
+	}
+	
 	session.Process(func(msg *libnet.InBuffer) error {
-		glog.Info(string(msg.Data))
+		//glog.Info(string(msg.Data))
+		
 		err := self.parseProtocol(msg.Data, session)
 		if err != nil {
 			glog.Error(err.Error())
@@ -51,7 +59,22 @@ func (self *RtmpServer)handleSession(session *libnet.Session) {
 		
 		return nil
 	})
+	
+	return nil
 }  
+
+func (self *RtmpServer)doHandShake(session *libnet.Session) error {
+	glog.Info("doHandShake")
+	var err error
+	hs := NewHandShake(self, session)
+	err = hs.recvC0C1()
+	if err != nil {
+		glog.Error(err.Error())
+		return err
+	}
+	
+	return nil
+}
 
 func (self *RtmpServer)parseProtocol(cmd []byte, session *libnet.Session) error {
 	return nil
