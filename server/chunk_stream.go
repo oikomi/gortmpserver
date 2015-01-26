@@ -52,8 +52,9 @@ type MesageHeader struct {
 type ChunkStream struct {
 	bh                BasicHeader
 	mh                MesageHeader
-	extendedTimestamp  uint32
+	extendedTimestamp uint32
 	data              []byte
+	lastChunk         *ChunkStream
 }
 
 func NewChunkStream() *ChunkStream {
