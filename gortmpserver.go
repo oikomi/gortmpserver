@@ -17,10 +17,10 @@ package main
 
 import(
 	"fmt"
+	"net"
 	"flag"
 	"github.com/golang/glog"
 	"github.com/oikomi/gortmpserver/server"
-	"github.com/oikomi/gortmpserver/libnet"
 )
 
 /*
@@ -45,7 +45,7 @@ func BuildTime() string {
 const VERSION string = "0.10"
 
 func version() {
-	fmt.Printf("rtmp_server version %s Copyright (c) 2014-2099 Harold Miao (miaohonghit@gmail.com)  \n", VERSION)
+	fmt.Printf("gortmpserver version %s Copyright (c) 2014-2099 Harold Miao (miaohonghit@gmail.com)  \n", VERSION)
 }
 
 func init() {
@@ -65,15 +65,20 @@ func main() {
 		glog.Error(err.Error())
 		return
 	}
-	libnet.DefaultProtocol = libnet.NewrtmpProtocol(1, libnet.BigEndian)
-	s, err := libnet.Listen(cfg.TransportProtocols, cfg.Listen)
+	serverAddr, err := net.ResolveTCPAddr("tcp", cfg.Listen)
 	if err != nil {
 		glog.Error(err.Error())
 		return
 	}
 	
-	glog.Info("rtmp server start at ", s.Listener().Addr().String())
-	rs := server.NewRtmpServer(cfg, s)
+	l, err := net.ListenTCP(cfg.TransportProtocols, serverAddr)  
+	if err != nil {
+		glog.Error(err.Error())
+		return
+	}
+	
+	glog.Info("Listening on: ", l.Addr().String())
+	rs := server.NewRtmpServer(cfg, l)
 	
 	rs.ServerLoop()
 }

@@ -16,16 +16,16 @@
 package server
 
 import(
+	"net"
 	"github.com/golang/glog"
-	"github.com/oikomi/gortmpserver/libnet"
 )
 
 type RtmpServer struct {
 	cfg     *RtmpServerConfig
-	server  *libnet.Server
+	server  *net.TCPListener
 }
 
-func NewRtmpServer(cfg *RtmpServerConfig, server *libnet.Server) *RtmpServer {
+func NewRtmpServer(cfg *RtmpServerConfig, server *net.TCPListener) *RtmpServer {
 	return &RtmpServer {
 		cfg    : cfg,
 		server : server,
@@ -33,37 +33,33 @@ func NewRtmpServer(cfg *RtmpServerConfig, server *libnet.Server) *RtmpServer {
 }
 
 func (self *RtmpServer)ServerLoop() {
-	self.server.Serve(func(session *libnet.Session) {
-		glog.Info("client ", session.Conn().RemoteAddr().String(), " | in")
-		
+	glog.Info("ServerLoop")
+	for {
+		conn, err := self.server.Accept()
+		if err != nil {
+			glog.Error(err.Error())
+			return
+		}
+		session := NewSession(conn)
 		go self.handleSession(session)
-	})
+	}
 }
 
-func (self *RtmpServer)handleSession(session *libnet.Session) error {
+func (self *RtmpServer)handleSession(session *Session) error {
 	glog.Info("handleSession")
-	var err error
-	err = self.doHandShake(session)
+	
+	err := self.doHandShake(session)
 	if err != nil {
 		glog.Error(err.Error())
 		return err
 	}
 	
-	session.Process(func(msg *libnet.InBuffer) error {
-		//glog.Info(string(msg.Data))
-		
-		err := self.parseProtocol(msg.Data, session)
-		if err != nil {
-			glog.Error(err.Error())
-		}
-		
-		return nil
-	})
+	
 	
 	return nil
 }  
 
-func (self *RtmpServer)doHandShake(session *libnet.Session) error {
+func (self *RtmpServer)doHandShake(session *Session) error {
 	glog.Info("doHandShake")
 	var err error
 	hs := NewHandShake(self, session)
@@ -73,13 +69,23 @@ func (self *RtmpServer)doHandShake(session *libnet.Session) error {
 		return err
 	}
 	
-	hs.sendS0S1S2()
+	err = hs.sendS0S1S2()
+	if err != nil {
+		glog.Error(err.Error())
+		return err
+	}
 	
-	hs.recvC2()
+	err = hs.recvC2()
+	if err != nil {
+		glog.Error(err.Error())
+		return err
+	}
+	
+	glog.Info("doHandShake done")
 	
 	return nil
 }
 
-func (self *RtmpServer)parseProtocol(cmd []byte, session *libnet.Session) error {
+func (self *RtmpServer)parseProtocol(cmd []byte, session *Session) error {
 	return nil
 }

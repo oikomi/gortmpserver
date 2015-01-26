@@ -22,7 +22,6 @@ import(
 	"encoding/binary"
 	"github.com/golang/glog"
 	"github.com/oikomi/gortmpserver/util"
-	"github.com/oikomi/gortmpserver/libnet"
 )
 
 const (
@@ -45,14 +44,14 @@ var (
 
 type HandShake struct {
 	rtmpServer  *RtmpServer
-	session     *libnet.Session
+	session     *Session
 	old         bool
 	c0c1        []byte
 	s0s1s2      *bytes.Buffer
 	c2          []byte
 }
 
-func NewHandShake(rtmpServer *RtmpServer, session *libnet.Session) *HandShake {
+func NewHandShake(rtmpServer *RtmpServer, session *Session) *HandShake {
 	return &HandShake{
 		rtmpServer : rtmpServer,
 		session    : session,
@@ -88,19 +87,15 @@ func (self *HandShake)parseC0C1() error {
 
 func (self *HandShake)recvC0C1() error {
 	glog.Info("recvC0C1")
-	var err error
-	err = self.session.ProcessOnce(func(msg *libnet.InBuffer) error {
-		glog.Info(msg.Data)
-		glog.Info(len(msg.Data))
-		copy(self.c0c1, msg.Data)
-		return nil
-	})
+	err := self.session.bufRead(self.c0c1)
 	if err != nil {
 		glog.Error(err.Error())
 		return err
 	}
+	glog.Info(self.c0c1)
 	
-	if err = self.parseC0C1(); err != nil {
+	err = self.parseC0C1()
+	if err != nil {
 		glog.Error(err.Error())
 		return err
 	}
@@ -136,12 +131,17 @@ func (self *HandShake)genS0S1S2() error {
 
 func (self *HandShake)sendS0S1S2() error {
 	glog.Info("sendS0S1S2")
-	var err error
-	self.genS0S1S2()
-	if err = self.session.Send(libnet.Bytes(self.s0s1s2.Bytes())); err != nil {
+	err := self.genS0S1S2()
+	if err != nil {
 		glog.Error(err.Error())
 		return err
 	}
+	err = self.session.bufWrite(self.s0s1s2.Bytes())
+	if err != nil {
+		glog.Error(err.Error())
+		return err
+	}
+	
 	return nil
 }
 
@@ -152,22 +152,12 @@ func (self *HandShake)parseC2() error {
 
 func (self *HandShake)recvC2() error {
 	glog.Info("recvC2")
-	var err error
-	err = self.session.ProcessOnce(func(msg *libnet.InBuffer) error {
-		glog.Info(msg.Data)
-		glog.Info(len(msg.Data))
-		copy(self.c2, msg.Data)
-		return nil
-	})
+	err := self.session.bufRead(self.c2)
 	if err != nil {
 		glog.Error(err.Error())
 		return err
 	}
-	
-	if err = self.parseC2(); err != nil {
-		glog.Error(err.Error())
-		return err
-	}
+	glog.Info(self.c2)
 	
 	return nil
 }
