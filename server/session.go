@@ -22,18 +22,24 @@ import(
 )
 
 type Session struct {
-	conn   net.Conn
-	br     *bufio.Reader
-	bw     *bufio.Writer
+	conn             net.Conn
+	br               *bufio.Reader
+	bw               *bufio.Writer
+	closed           bool
+	inChunkStreams   map[uint32]*ChunkStream
+	outChunkStreams  map[uint32]*ChunkStream
 }
 
 func NewSession(conn net.Conn) *Session {
 	return &Session {
-		conn : conn,
-		br   : bufio.NewReader(conn),
-		bw   : bufio.NewWriter(conn),
+		conn             : conn,
+		br               : bufio.NewReader(conn),
+		bw               : bufio.NewWriter(conn),
+		outChunkStreams  :  make(map[uint32]*ChunkStream),
+		inChunkStreams   :  make(map[uint32]*ChunkStream),
 	}
 }
+
 
 func (self *Session)bufRead(b []byte) error {
 	_, err := self.br.Read(b)
@@ -58,6 +64,20 @@ func (self *Session)bufWrite(b []byte) error {
 		glog.Error(err.Error())
 		return err
 	}
+	
+	return nil
+}
+
+func (self *Session)readLoop() error {
+	for !self.closed {
+		cs := NewChunkStream()
+		cs.ReadChunkStream(self.br)
+		self.inChunkStreams[cs.bh.chunkStreamID] = cs
+	}
+	return nil
+}
+
+func (self *Session)sendLoop() error {
 	
 	return nil
 }

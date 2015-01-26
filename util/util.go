@@ -21,14 +21,32 @@ import(
 	"encoding/binary"
 )
 
+const (
+	UBigEndian     = 0
+	ULittleEndian  = 1
+)
+
 func Byte42Uint32(data []byte, endian int) uint32 {
 	var i uint32
-	if 0 == endian {
+	if UBigEndian == endian {
 		i = uint32(uint32(data[3]) + uint32(data[2])<<8 + uint32(data[1])<<16 + uint32(data[0])<<24)
 	}
 	
-	if 1 == endian {
+	if ULittleEndian == endian {
 		i = uint32(uint32(data[0]) + uint32(data[1])<<8 + uint32(data[2])<<16 + uint32(data[3])<<24)
+	}
+
+	return i
+}
+
+func Byte32Uint32(b []byte, endian int) uint32 {
+	var i uint32
+	if UBigEndian == endian {
+		i = uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+	}
+	
+	if ULittleEndian == endian {
+		i = uint32(b[0])<<8 | uint32(b[1])<<16 | uint32(b[2])<<24
 	}
 
 	return i

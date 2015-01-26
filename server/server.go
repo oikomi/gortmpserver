@@ -54,7 +54,8 @@ func (self *RtmpServer)handleSession(session *Session) error {
 		return err
 	}
 	
-	
+	go session.sendLoop()
+	go session.readLoop()
 	
 	return nil
 }  
@@ -86,6 +87,8 @@ func (self *RtmpServer)doHandShake(session *Session) error {
 	return nil
 }
 
-func (self *RtmpServer)parseProtocol(cmd []byte, session *Session) error {
+func (self *RtmpServer)parseProtocol(cs *ChunkStream) error {
+	
+
 	return nil
 }
