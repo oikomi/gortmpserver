@@ -17,15 +17,76 @@ package server
 
 import (
 	"bytes"
+	"github.com/golang/glog"
+)
+
+// Message type
+const (
+	SET_CHUNK_SIZE = uint8(1)
+
+	ABORT_MESSAGE = uint8(2)
+
+	ACKNOWLEDGEMENT = uint8(3)
+
+	USER_CONTROL_MESSAGE = uint8(4)
+
+	WINDOW_ACKNOWLEDGEMENT_SIZE = uint8(5)
+
+	SET_PEER_BANDWIDTH = uint8(6)
+
+	AUDIO_TYPE = uint8(8)
+
+	VIDEO_TYPE = uint8(9)
+
+	AGGREGATE_MESSAGE_TYPE = uint8(22)
+
+	SHARED_OBJECT_AMF0 = uint8(19)
+	SHARED_OBJECT_AMF3 = uint8(16)
+
+	DATA_AMF0 = uint8(18)
+	DATA_AMF3 = uint8(15)
+
+	COMMAND_AMF0 = uint8(20)
+	COMMAND_AMF3 = uint8(17) // Keng-die!!! Just ignore one byte before AMF0.
 )
 
 type Message struct {
-	chunkStreamID     uint32
-	timestamp         uint32
-	size              uint32
-	msgType           uint8
-	streamID          uint32
-	buf               *bytes.Buffer
-	isInbound         bool
-	absoluteTimestamp uint32
+	ChunkStreamID     uint32
+	Timestamp         uint32
+	Size              uint32
+	Type              uint8
+	StreamID          uint32
+	Buf               *bytes.Buffer
+	IsInbound         bool
+	AbsoluteTimestamp uint32
+}
+
+func NewMessage(csi uint32, t uint8, sid uint32, ts uint32, data []byte) *Message {
+	message := &Message{
+		ChunkStreamID     : csi,
+		Type              : t,
+		StreamID          : sid,
+		Timestamp         : ts,
+		AbsoluteTimestamp : ts,
+		Buf               : new(bytes.Buffer),
+	}
+	if data != nil {
+		message.Buf.Write(data)
+		message.Size = uint32(len(data))
+	}
+	return message
+}
+
+// The length of remain data to read
+func (self *Message) Remain() uint32 {
+	if self.Buf == nil {
+		return self.Size
+	}
+	return self.Size - uint32(self.Buf.Len())
+}
+
+
+func (self *Message) Dump() {
+	glog.Infof("Message{CID: %d, Type: %d, Timestamp: %d, Size: %d, StreamID: %d, IsInbound: %t, AbsoluteTimestamp: %d}\n",
+		self.ChunkStreamID, self.Type, self.Timestamp, self.Size, self.StreamID, self.IsInbound, self.AbsoluteTimestamp)
 }

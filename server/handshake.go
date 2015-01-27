@@ -86,13 +86,13 @@ func (self *HandShake)parseC0C1() error {
 }
 
 func (self *HandShake)recvC0C1() error {
-	glog.Info("recvC0C1")
+	glog.Info("handshake | recvC0C1")
 	err := self.session.bufRead(self.c0c1)
 	if err != nil {
 		glog.Error(err.Error())
 		return err
 	}
-	glog.Info(self.c0c1)
+	//glog.Info(self.c0c1)
 	
 	err = self.parseC0C1()
 	if err != nil {
@@ -120,8 +120,8 @@ func (self *HandShake)genS0S1S2() error {
 		
 		//binary.Write(self.s0s1s2, binary.BigEndian, self.c0c1)
 		
-		glog.Info(self.s0s1s2.Bytes())
-		glog.Info(len(self.s0s1s2.Bytes()))
+		//glog.Info(self.s0s1s2.Bytes())
+		//glog.Info(len(self.s0s1s2.Bytes()))
 	} else {
 		
 	}
@@ -130,7 +130,7 @@ func (self *HandShake)genS0S1S2() error {
 }
 
 func (self *HandShake)sendS0S1S2() error {
-	glog.Info("sendS0S1S2")
+	glog.Info("handshake | sendS0S1S2")
 	err := self.genS0S1S2()
 	if err != nil {
 		glog.Error(err.Error())
@@ -151,13 +151,13 @@ func (self *HandShake)parseC2() error {
 }
 
 func (self *HandShake)recvC2() error {
-	glog.Info("recvC2")
+	glog.Info("handshake | recvC2")
 	err := self.session.bufRead(self.c2)
 	if err != nil {
 		glog.Error(err.Error())
 		return err
 	}
-	glog.Info(self.c2)
+	//glog.Info(self.c2)
 	
 	return nil
 }

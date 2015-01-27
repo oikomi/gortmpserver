@@ -37,6 +37,13 @@ const (
 	MESSAGE_HEADER_TYPE3_LENGTH       = 0
 )
 
+// Chunk stream ID
+const (
+	CS_ID_PROTOCOL_CONTROL = uint32(2)
+	CS_ID_COMMAND          = uint32(3)
+	CS_ID_USER_CONTROL     = uint32(4)
+)
+
 type BasicHeader struct {
 	fmt            uint8
 	chunkStreamID  uint32
@@ -50,16 +57,26 @@ type MesageHeader struct {
 }
 
 type ChunkStream struct {
-	bh                BasicHeader
-	mh                MesageHeader
-	extendedTimestamp uint32
-	data              []byte
-	lastChunk         *ChunkStream
+	bh                       BasicHeader
+	mh                       MesageHeader
+	extendedTimestamp        uint32
+	data                     []byte
+	lastChunk                *ChunkStream
+	lastOutAbsoluteTimestamp uint32
+	lastInAbsoluteTimestamp  uint32
+	receivedMessage          *Message
 }
 
 func NewChunkStream() *ChunkStream {
 	return &ChunkStream {
 	}
+}
+
+func (self *ChunkStream) realTimestamp() uint32 {
+	if self.mh.timestamp >= 0xffffff {
+		return self.extendedTimestamp
+	}
+	return self.mh.timestamp
 }
 
 func (self *ChunkStream)readBasicHeader(br *bufio.Reader) error {
@@ -116,13 +133,13 @@ func (self *ChunkStream) parseMesageHeader(buf []byte) {
 		glog.Info(buf)
 		self.mh.timestamp = util.Byte32Uint32(buf[0:3], util.UBigEndian)
 		self.mh.messageLength = util.Byte32Uint32(buf[3:6], util.UBigEndian)
-		self.mh.messageTypeID = uint8(buf[7])
+		self.mh.messageTypeID = uint8(buf[6])
 		// messageStreamID is littleEndian 
-		self.mh.messageStreamID = util.Byte32Uint32(buf[8:11], util.ULittleEndian)
+		self.mh.messageStreamID = binary.LittleEndian.Uint32(buf[7:11])
 	case HEADER_FMT_SAME_STREAM:
 		self.mh.timestamp = util.Byte32Uint32(buf[0:3], util.UBigEndian)
 		self.mh.messageLength = util.Byte32Uint32(buf[3:6], util.UBigEndian)
-		self.mh.messageTypeID = uint8(buf[7])
+		self.mh.messageTypeID = uint8(buf[6])
 	case HEADER_FMT_SAME_LENGTH_AND_STREAM:
 		self.mh.timestamp = util.Byte32Uint32(buf[0:3], util.UBigEndian)
 
@@ -138,7 +155,6 @@ func (self *ChunkStream) readMesageHeader(br *bufio.Reader) error {
 		if _, err := io.ReadFull(br, tmpBuf); err != nil {
 			return err
 		}
-		glog.Info(tmpBuf)
 		self.parseMesageHeader(tmpBuf)
 	case HEADER_FMT_SAME_STREAM:
 		tmpBuf := make([]byte, MESSAGE_HEADER_TYPE1_LENGTH)
@@ -173,7 +189,7 @@ func (self *ChunkStream) readMesageHeader(br *bufio.Reader) error {
 	return nil
 }
 
-func (self *ChunkStream)ReadChunkStream(br *bufio.Reader) error {
+func (self *ChunkStream)readChunkStream(br *bufio.Reader) error {
 	err := self.readBasicHeader(br)
 	if err != nil {
 		glog.Error(err.Error())
@@ -186,4 +202,10 @@ func (self *ChunkStream)ReadChunkStream(br *bufio.Reader) error {
 	}
 
 	return nil
+}
+
+func (self *ChunkStream)dump() {
+	glog.Infof("ChunkStream{Fmt: %d, ChunkStreamID: %d, Timestamp: %d, MessageLength: %d, MessageTypeID: %d, MessageStreamID: %d, ExtendedTimestamp: %d}",
+		self.bh.fmt, self.bh.chunkStreamID, self.mh.timestamp, self.mh.messageLength,
+		self.mh.messageTypeID, self.mh.messageStreamID, self.extendedTimestamp)
 }
